@@ -1,3 +1,4 @@
+// node cursor.js
 const { Pool } = require('pg')
 const Cursor = require('pg-cursor')
 

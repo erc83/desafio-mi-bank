@@ -1,3 +1,5 @@
+// node queryBalance.js                  ejecuta la consulta
+
 const { Pool } = require("pg");
 
 const config = {

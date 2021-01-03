@@ -1,4 +1,5 @@
 const { Pool } = require('pg')
+const Cursor = require('pg-cursor')
 
 const config = {
     user: 'erc83', 
@@ -8,9 +9,10 @@ const config = {
     port:5432
 }
 
-const pool = new Pool(config)
-// de esta forma se puede utilizar async y await 
+const pool = new Pool(config);
+ 
 module.exports = {
     getClient: ()=> pool.connect(), //entrega un cliente pool.conect no se puede modificar  
-    end: ()=> pool.end()
+    end: ()=> pool.end(),
+    Cursor
 }

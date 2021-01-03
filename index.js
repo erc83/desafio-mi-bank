@@ -1,53 +1,79 @@
-const Cursor = require('pg-cursor')
-const yargs = require('yargs');
-const db = require('./db/index');
+const db = require('./db')
 
-const createAndEditArgs = {
-    description: {
-        describe: 'descripcion de la transaccion',
-        demand: true,
-        alias: 'd'
-    },
-    description: {
-        describe: 'descripcion de la transaccion',
-        demand: true,
-        alias: 'd'
-    },
-    date: {
-        describe: 'fecha de la transaccion',
-        demand: true,
-        alias: 'f'
-    },
-    amount: {
-        describe: 'valor de la transaccion',
-        demand: true,
-        alias: 'a'
-    },
-    accountid: {
-        describe: 'identificacion de los balances de la tabla account',
-        demand: true,
-        alias: 'i'
-    }};
+const args = process.argv.slice(2)
+const trxType = args[0]
+const account = args[1]
+const date = args[2]
+const desc = args[3]
+const amount = args[4]
 
-(async()=>{
-    let client
+//  node index.js <trxType> <account> <date> <desc> <amount>
+
+switch (trxType) {
+    case 'nueva':
+        newTrx(account, date, desc, amount)
+        break;
+    case 'consulta':
+        showTrxs(account)
+        break;
+    case 'consulta-saldo':
+        showBalance(account)
+        break;
+}
+
+async function showTrxs(account){
+    const client = await db.getClient()
+    const cursor = new db.Cursor(`SELECT * FROM trxs where accountId = ${account}`)
+    client.query(cursor);
+    cursor.read(10, (err, rows)=>{
+        if (err) console.log(err);
+        console.log(`Las ultimas 10 trxs de la cuenta ${account} son:`, rows);
+        client.release()
+        db.end()
+    })
+}
+
+
+async function showBalance(account){
+    const client = await db.getClient()
+    const cursor = new db.Cursor(`SELECT * FROM accounts where id = ${account}`)
+    client.query(cursor);
+    cursor.read(10, (err, rows)=>{
+        if (err) console.log(err);
+        console.log(`El saldo de la cuenta ${account} es: `, rows[0].balance);
+        client.release()
+        db.end()
+    })
+}
+
+async function newTrx(account, date, desc, amount){
+    const client = await db.getClient()
+    const updateBalanceQry = {
+        text: `UPDATE accounts SET balance = balance - $1 WHERE id = $2 RETURNING *`,
+        values: [amount, account]
+    };
+    const newTrx = {
+        text: "INSERT INTO trxs (description, date, amount, accountId) values ($1, $2, $3, $4) RETURNING *",
+        values: [desc, date, amount, account]
+    }
     try {
-        client = await db.getClient();
+        await client.query("BEGIN")
+        const result = await client.query(newTrx)
+        await client.query(updateBalanceQry)
+        await client.query("COMMIT")
+        console.log("Transacción realizada con éxito")
+        console.log("Ultima transacción: ", result.rows[0])
     } catch (error) {
-        console.log('error en la conexion', error.stack);
+        await client.query("ROLLBACK")
+        console.log(error)
     }
+    client.release()
+    db.end()
+}
+//  para consultar saldo de la cuenta
+//  node index.js consulta-saldo 2
 
-const argv = yargs.command('trxs', 'Comando para agregar una nueva transaccion',createAndEditArgs,
-    async(args) =>{
-        const queryObject = {
-            text: 'INSERT INTO accounts (description, date, amount, accountid) VALUES ($2, $3, $4, $5) RETURNING *',
-            values:[args.description, args.date, args.amount, args.accountid]
-        }
-        const results = await client.query(queryObject)
-        client.release();
-        db.end;
-        console.log(results.rows[0])       
+// para consultar las ultimas 10 transacciones
+// node index.js consulta 1
 
-    }
-).help().argv
-})()
+

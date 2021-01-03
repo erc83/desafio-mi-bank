@@ -6,5 +6,5 @@ CREATE TABLE trxs(
     date timestamp NOT NULL DEFAULT NOW(),
     amount INTEGER,
     accountId INTEGER,
-    FOREIGN KEY  (accountId) REFERENCES accounts(id)
+    FOREIGN KEY (accountId) REFERENCES accounts(id)
 )
